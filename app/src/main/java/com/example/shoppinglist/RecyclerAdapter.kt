@@ -4,7 +4,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import android.widget.Toast
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView.ViewHolder
+
 
 // array list is the items to display and mOnItemSelectListener come from the main activity.
 // The mOnItemSelectListener links the click event to the activity.
@@ -17,6 +22,7 @@ class RecyclerAdapter(private val shoppingList: ArrayList<ShoppingItem>,
         val itemView = LayoutInflater
             .from(parent.context)
             .inflate(R.layout.recycler_item_row, parent, false)
+
         return ShoppingViewHolder(itemView, mOnItemSelectListener)
     }
 
@@ -63,4 +69,6 @@ class RecyclerAdapter(private val shoppingList: ArrayList<ShoppingItem>,
     interface OnItemSelectListener {
         fun onItemSelected(position: Int)
     }
+
+
 }

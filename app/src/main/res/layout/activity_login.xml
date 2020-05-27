@@ -8,6 +8,7 @@
 
     <ImageView
         android:id="@+id/logo"
+        app:srcCompat="@drawable/shopping_list_icon"
         android:layout_width="100dp"
         android:layout_height="120dp"
         android:layout_centerHorizontal="true"
