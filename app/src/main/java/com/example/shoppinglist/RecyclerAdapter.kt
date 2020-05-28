@@ -3,12 +3,13 @@ package com.example.shoppinglist
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
-import android.widget.Toast
-import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
-import androidx.recyclerview.widget.RecyclerView.ViewHolder
+import com.android.volley.RequestQueue
+import com.android.volley.toolbox.ImageLoader
+import com.android.volley.toolbox.NetworkImageView
+import com.squareup.picasso.Picasso
 
 
 // array list is the items to display and mOnItemSelectListener come from the main activity.
@@ -35,7 +36,11 @@ class RecyclerAdapter(private val shoppingList: ArrayList<ShoppingItem>,
         val currentItem = shoppingList[position]
 
         holder.textView.text = currentItem.name
-
+        holder.priceView.text = "$${currentItem.price}"
+        Picasso.get().load(currentItem.imageUrl)
+            .resize(80, 80)
+            .centerCrop()
+            .into(holder.imageView)
     }
 
     fun updateShoppingList(newList: ArrayList<ShoppingItem>) {
@@ -49,6 +54,9 @@ class RecyclerAdapter(private val shoppingList: ArrayList<ShoppingItem>,
         : RecyclerView.ViewHolder(v), View.OnClickListener {
         // This is where the image and text is displayed for each row
         val textView: TextView = v.findViewById(R.id.item_name)
+        val imageView: ImageView = v.findViewById(R.id.icon_view)
+
+        val priceView: TextView = v.findViewById(R.id.priceView)
 
         init {
             // sets the onclick listener on initialisation of each row

@@ -1,26 +1,35 @@
 package com.example.shoppinglist
 
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.media.Image
+import android.os.Build
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.android.volley.AuthFailureError
 import com.android.volley.Request
 import com.android.volley.RequestQueue
 import com.android.volley.Response
+import com.android.volley.toolbox.ImageLoader
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
 import org.json.JSONException
 import org.json.JSONObject
+import java.net.URL
 
 // The Activity implements AppCompatActivity() class but also the OnItemSelectListener interface
 // which links the recyclerView click event to this activity.
@@ -28,14 +37,16 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: RecyclerAdapter
     private lateinit var toolbar: Toolbar
-    private lateinit var result: String
     private var shoppingList = ArrayList<ShoppingItem>()
     private lateinit var queue: RequestQueue
+    private  lateinit var prefs: SharedPreferences
     private val shoppingItemUrl = "https://tranquil-lowlands-73758.herokuapp.com/api/shoppingitems/"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        prefs = getPreferences(Context.MODE_PRIVATE)
 
         queue = Volley.newRequestQueue(this)
         toolbar = findViewById(R.id.toolbar)
@@ -58,7 +69,7 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
         itemTouchHelper.attachToRecyclerView(recyclerView)
     }
 
-    var swipeItemCallback: ItemTouchHelper.SimpleCallback = object :
+    private var swipeItemCallback: ItemTouchHelper.SimpleCallback = object :
         ItemTouchHelper.SimpleCallback(
             0,
             ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
@@ -130,23 +141,20 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
                     val jsonArray = response.getJSONArray("data")
                     for (i in 0 until jsonArray.length()) {
                         val jsonObject = jsonArray.getJSONObject(i)
+                        var urlString = jsonObject.getJSONObject("attributes").getString("image")
+                        val index = urlString.indexOf(':')
+                        val subString = if (index == -1) null else urlString.substring(index + 1)
+                        urlString = "https:$subString"
+
                         updatedList.add(ShoppingItem(
                             id = jsonObject.getString("id"),
                             name = jsonObject.getJSONObject("attributes").getString("name"),
+                            imageUrl = urlString,
                             price = jsonObject.getJSONObject("attributes").getString("price")
                         ))
                     }
                 } catch (e: JSONException) {
-                    try {
-                        val jsonObject = response.getJSONObject("data")
-                        updatedList.add(ShoppingItem(
-                            id = jsonObject.getString("id"),
-                            name = jsonObject.getJSONObject("attributes").getString("name"),
-                            price = jsonObject.getJSONObject("attributes").getString("price")
-                        ))
-                    } catch (e: JSONException) {
-                        e.printStackTrace()
-                    }
+                    e.printStackTrace()
                 } finally {
                     adapter.updateShoppingList(updatedList)
                 }
@@ -156,16 +164,22 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
             }
         )
 
+        val token = prefs.getString("token", null)
+        if (token != null) {
+            request.headers["Authorization"] = "Token $token"
+        }
+
         queue.add(request)
 
     }
 
     private fun deleteRequest(id: String) {
-        val params = JSONObject();
+        val params = JSONObject()
         params.put("id", id)
+        val deleteUrl = "$shoppingItemUrl$id/"
 
         val deleteRequest = JsonObjectRequest(
-            Request.Method.DELETE, shoppingItemUrl, params,
+            Request.Method.DELETE, deleteUrl, params,
             Response.Listener<JSONObject> { response ->
 
             },
@@ -173,9 +187,15 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
                 it.printStackTrace()
             }
         )
+
+        val token = prefs.getString("token", null)
+        if (token != null) {
+            deleteRequest.headers["Authorization"] = "Token $token"
+        }
         queue.add(deleteRequest)
     }
 
+    @RequiresApi(Build.VERSION_CODES.KITKAT)
     private fun pushRequest(name: String, image: String, price: String) {
         var imageProvided = image
         var priceProvided = price
@@ -212,9 +232,17 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
                     val jsonArray = response.getJSONArray("data")
                     for (i in 0 until jsonArray.length()) {
                         val jsonObject = jsonArray.getJSONObject(i)
+                        var urlString = jsonObject.getJSONObject("attributes").getString("image")
+                        val index = urlString.indexOf(':')
+                        val subString = if (index == -1) null else urlString.substring(index + 1)
+                        urlString = "https:$subString"
+
+//                        val url = URL(urlString)
+//                        val bmp = BitmapFactory.decodeStream(url.openConnection().getInputStream())
                         updatedList.add(ShoppingItem(
                             id = jsonObject.getString("id"),
                             name = jsonObject.getJSONObject("attributes").getString("name"),
+                            imageUrl = urlString,
                             price = jsonObject.getJSONObject("attributes").getString("price")
                         ))
                     }

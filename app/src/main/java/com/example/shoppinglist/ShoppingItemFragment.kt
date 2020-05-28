@@ -9,6 +9,7 @@ import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.squareup.picasso.Picasso
 
 class ShoppingItemFragment : Fragment() {
     private lateinit var selectedItem: ShoppingItem
@@ -30,6 +31,10 @@ class ShoppingItemFragment : Fragment() {
         // imageView.setImageResource(selectedItem.imageResource)
         itemName.text = selectedItem.name
         itemPrice.text = "$${selectedItem.price}"
+        Picasso.get().load(selectedItem.imageUrl)
+            .resize(150, 150)
+            .centerCrop()
+            .into(imageView)
 
         return view
     }
