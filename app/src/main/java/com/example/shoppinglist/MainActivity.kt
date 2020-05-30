@@ -3,11 +3,9 @@ package com.example.shoppinglist
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
-import android.media.Image
 import android.os.Build
 import android.os.Bundle
 import android.view.Menu
@@ -20,22 +18,19 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.android.volley.AuthFailureError
-import com.android.volley.Request
-import com.android.volley.RequestQueue
-import com.android.volley.Response
-import com.android.volley.toolbox.ImageLoader
+import com.android.volley.*
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import org.json.JSONException
 import org.json.JSONObject
-import java.net.URL
 
 // The Activity implements AppCompatActivity() class but also the OnItemSelectListener interface
 // which links the recyclerView click event to this activity.
 class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: RecyclerAdapter
+    private lateinit var fab: FloatingActionButton
     private lateinit var toolbar: Toolbar
     private var shoppingList = ArrayList<ShoppingItem>()
     private lateinit var queue: RequestQueue
@@ -46,13 +41,16 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        prefs = getPreferences(Context.MODE_PRIVATE)
-
         queue = Volley.newRequestQueue(this)
         toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
         recyclerView = findViewById(R.id.recyclerView)
+        fab = findViewById(R.id.fab)
 
+        fab.setOnClickListener {
+            intent = Intent(this, AddProduct::class.java)
+            this.startActivity(intent)
+        }
         parseJson()
 
         // Below finds the recyclerView from the layout and attaches the adapter and passes the
@@ -133,8 +131,10 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
     }
 
     private fun parseJson() {
-        val request = JsonObjectRequest(
-            Request.Method.GET, shoppingItemUrl, null,
+        prefs = getSharedPreferences("auth", Context.MODE_PRIVATE)
+        val token = prefs.getString("token", null)!!
+        val request = object: JsonObjectRequest(
+            Method.GET, shoppingItemUrl, null,
             Response.Listener<JSONObject> { response ->
                 var updatedList = ArrayList<ShoppingItem>()
                 try {
@@ -162,36 +162,41 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
             Response.ErrorListener {
                 it.printStackTrace()
             }
-        )
-
-        val token = prefs.getString("token", null)
-        if (token != null) {
-            request.headers["Authorization"] = "Token $token"
+        ) {
+            override fun getHeaders() : Map<String,String> {
+                val header = HashMap<String, String>()
+                header["Authorization"] = "Token $token"
+                header["Content-Type"] = "application/vnd.api+json"
+                return header
+            }
         }
-
         queue.add(request)
-
     }
 
     private fun deleteRequest(id: String) {
         val params = JSONObject()
         params.put("id", id)
         val deleteUrl = "$shoppingItemUrl$id/"
+        prefs = getSharedPreferences("auth", Context.MODE_PRIVATE)
+        val token = prefs.getString("token", null)
 
-        val deleteRequest = JsonObjectRequest(
-            Request.Method.DELETE, deleteUrl, params,
-            Response.Listener<JSONObject> { response ->
+        val deleteRequest = object: JsonObjectRequest(
+            Method.DELETE, deleteUrl, params,
+            Response.Listener { response ->
 
             },
             Response.ErrorListener {
                 it.printStackTrace()
             }
-        )
-
-        val token = prefs.getString("token", null)
-        if (token != null) {
-            deleteRequest.headers["Authorization"] = "Token $token"
+        )  {
+            override fun getHeaders() : Map<String,String> {
+                val header = HashMap<String, String>()
+                header["Authorization"] = "Token $token"
+                return header
+            }
         }
+
+
         queue.add(deleteRequest)
     }
 
@@ -237,8 +242,6 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
                         val subString = if (index == -1) null else urlString.substring(index + 1)
                         urlString = "https:$subString"
 
-//                        val url = URL(urlString)
-//                        val bmp = BitmapFactory.decodeStream(url.openConnection().getInputStream())
                         updatedList.add(ShoppingItem(
                             id = jsonObject.getString("id"),
                             name = jsonObject.getJSONObject("attributes").getString("name"),

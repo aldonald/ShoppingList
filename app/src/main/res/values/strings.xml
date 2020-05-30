@@ -7,4 +7,19 @@
     <string name="company_logo">Company Logo</string>
     <string name="log_out">Log Out</string>
     <string name="choose_shop">Choose Shop</string>
+    <string name="title_activity_login">Sign in</string>
+    <string name="prompt_email">Email</string>
+    <string name="prompt_password">Password</string>
+    <string name="action_sign_in">Sign in or register</string>
+    <string name="action_sign_in_short">Sign in</string>
+    <string name="welcome">"Welcome !"</string>
+    <string name="invalid_username">Not a valid username</string>
+    <string name="invalid_password">Password must be >5 characters</string>
+    <string name="login_failed">"Login failed"</string>
+    <string name="name">Name</string>
+    <string name="enter_password">Enter password</string>
+    <string name="renter_password">Renter password</string>
+    <string name="enter_email_address">Enter email address</string>
+    <string name="enter_a_username">Enter a Username</string>
+    <string name="create_user">Create User</string>
 </resources>
