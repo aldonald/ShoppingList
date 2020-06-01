@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
@@ -14,6 +15,8 @@ import com.android.volley.RequestQueue
 import com.android.volley.Response
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
+import com.google.android.gms.tasks.OnCompleteListener
+import com.google.firebase.iid.FirebaseInstanceId
 import org.json.JSONException
 import org.json.JSONObject
 
@@ -23,7 +26,8 @@ class CreateUser : AppCompatActivity() {
     private lateinit var password: EditText
     private lateinit var verifyPassword: EditText
     private lateinit var createUserButton: Button
-    private lateinit var prefs: SharedPreferences
+    private lateinit var authPrefs: SharedPreferences
+    private lateinit var idPrefs: SharedPreferences
     private lateinit var queue: RequestQueue
     private val addUserUrl = "https://tranquil-lowlands-73758.herokuapp.com/api/create_user/"
 
@@ -31,7 +35,8 @@ class CreateUser : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_create_user)
 
-        prefs = getSharedPreferences("auth", Context.MODE_PRIVATE)
+        authPrefs = getSharedPreferences("auth", Context.MODE_PRIVATE)
+        idPrefs = getSharedPreferences("id", Context.MODE_PRIVATE)
         queue = Volley.newRequestQueue(this)
         username = findViewById(R.id.create_username)
         email = findViewById(R.id.createEmail)
@@ -59,10 +64,16 @@ class CreateUser : AppCompatActivity() {
                 val params = JSONObject()
                 params.put("data", data)
 
-                val request = object: JsonObjectRequest(
+                val request = object : JsonObjectRequest(
                     Method.POST, addUserUrl, params,
                     Response.Listener { response ->
                         val jsonObject = response.getJSONObject("data")
+                        val id = jsonObject.getString("id")
+                        with(idPrefs.edit()) {
+                            putString("id", id)
+                            commit()
+                        }
+
                         val username = jsonObject.getJSONObject("attributes").getString("username")
 
                         login(username, passwordText)
@@ -71,7 +82,7 @@ class CreateUser : AppCompatActivity() {
                         it.printStackTrace()
                     }
                 ) {
-                    override fun getHeaders() : Map<String,String> {
+                    override fun getHeaders(): Map<String, String> {
                         val header = HashMap<String, String>()
                         header["Content-Type"] = "application/vnd.api+json"
                         return header
@@ -80,6 +91,7 @@ class CreateUser : AppCompatActivity() {
                 queue.add(request)
             }
         }
+
     }
 
     private fun login(username: String, password: String) {
@@ -93,11 +105,10 @@ class CreateUser : AppCompatActivity() {
             Response.Listener<JSONObject> { response ->
                 try {
                     val token = response.getString("token")
-                    with (prefs.edit()) {
+                    with (authPrefs.edit()) {
                         putString("token", token)
                         commit()
                     }
-
                 } catch (e: JSONException) {
                     Toast.makeText(this, "Invalid login details!", Toast.LENGTH_SHORT).show()
                     e.printStackTrace()

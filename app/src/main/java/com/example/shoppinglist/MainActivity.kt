@@ -8,6 +8,7 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
@@ -21,7 +22,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.android.volley.*
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
+import com.google.android.gms.tasks.OnCompleteListener
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.firebase.iid.FirebaseInstanceId
+import com.google.firebase.messaging.FirebaseMessagingService
 import org.json.JSONException
 import org.json.JSONObject
 
@@ -35,7 +39,6 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
     private var shoppingList = ArrayList<ShoppingItem>()
     private lateinit var queue: RequestQueue
     private  lateinit var prefs: SharedPreferences
-    private val shoppingItemUrl = "https://tranquil-lowlands-73758.herokuapp.com/api/shoppingitems/"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,6 +54,7 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
             intent = Intent(this, AddProduct::class.java)
             this.startActivity(intent)
         }
+
         parseJson()
 
         // Below finds the recyclerView from the layout and attaches the adapter and passes the
@@ -65,6 +69,50 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
         recyclerView.setHasFixedSize(false)
         val itemTouchHelper = ItemTouchHelper(swipeItemCallback)
         itemTouchHelper.attachToRecyclerView(recyclerView)
+
+        FirebaseInstanceId.getInstance().instanceId
+            .addOnCompleteListener(OnCompleteListener { task ->
+                if (!task.isSuccessful) {
+                    Log.w("getInstanceId failed", task.exception)
+                    return@OnCompleteListener
+                }
+                val storedToken = prefs.getString("firebase", "")
+                val firebaseToken = task.result?.token as String
+                if (storedToken != firebaseToken) {
+                    val url = "https://tranquil-lowlands-73758.herokuapp.com/api/add_ftoken/"
+                    val authToken = prefs.getString("token", null)
+
+                    val params = JSONObject()
+                    params.put("firebaseToken", firebaseToken)
+
+                    val request = object: JsonObjectRequest(
+                        Method.POST, url, params,
+                        Response.Listener { _ ->
+                            with (prefs.edit()) {
+                                putString("firebase", firebaseToken)
+                                commit()
+                            }
+                            val msg = "Firebase token: $firebaseToken"
+                            Log.d("Success", msg)
+                        },
+                        Response.ErrorListener {
+                            it.printStackTrace()
+                        }
+                    )  {
+                        override fun getHeaders() : Map<String,String> {
+                            val header = HashMap<String, String>()
+                            header["Authorization"] = "Token $authToken"
+                            header["Content-Type"] = "application/vnd.api+json"
+                            return header
+                        }
+                    }
+
+                    queue.add(request)
+                }
+
+
+
+            })
     }
 
     private var swipeItemCallback: ItemTouchHelper.SimpleCallback = object :
@@ -132,9 +180,14 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
 
     private fun parseJson() {
         prefs = getSharedPreferences("auth", Context.MODE_PRIVATE)
-        val token = prefs.getString("token", null)!!
+        val token = prefs.getString("token", null)
+        if (token.isNullOrBlank()) {
+            intent = Intent(this, Login::class.java)
+            this.startActivity(intent)
+        }
+        val url = "https://tranquil-lowlands-73758.herokuapp.com/api/shoppingitems/"
         val request = object: JsonObjectRequest(
-            Method.GET, shoppingItemUrl, null,
+            Method.GET, url, null,
             Response.Listener<JSONObject> { response ->
                 var updatedList = ArrayList<ShoppingItem>()
                 try {
@@ -175,15 +228,14 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
 
     private fun deleteRequest(id: String) {
         val params = JSONObject()
-        params.put("id", id)
-        val deleteUrl = "$shoppingItemUrl$id/"
+        val url = "https://tranquil-lowlands-73758.herokuapp.com/api/shoppingitems/$id/"
         prefs = getSharedPreferences("auth", Context.MODE_PRIVATE)
         val token = prefs.getString("token", null)
 
         val deleteRequest = object: JsonObjectRequest(
-            Method.DELETE, deleteUrl, params,
-            Response.Listener { response ->
-
+            Method.DELETE, url, params,
+            Response.Listener { _ ->
+                Toast.makeText(this, "Item deleted!", Toast.LENGTH_SHORT)
             },
             Response.ErrorListener {
                 it.printStackTrace()
@@ -192,74 +244,11 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
             override fun getHeaders() : Map<String,String> {
                 val header = HashMap<String, String>()
                 header["Authorization"] = "Token $token"
+                header["Content-Type"] = "application/vnd.api+json"
                 return header
             }
         }
-
-
         queue.add(deleteRequest)
-    }
-
-    @RequiresApi(Build.VERSION_CODES.KITKAT)
-    private fun pushRequest(name: String, image: String, price: String) {
-        var imageProvided = image
-        var priceProvided = price
-
-        if (imageProvided == null) {
-            imageProvided = ""
-        }
-        if (priceProvided == null) {
-            priceProvided = ""
-        }
-
-        val data = JSONObject(
-            """"
-            "type" "ShoppingItem",
-            "id": "
-            """"
-        )
-        val attributes = JSONObject()
-        attributes.put("name", name)
-        attributes.put("image", imageProvided)
-        attributes.put("price", priceProvided)
-
-        data.put("attributes", attributes)
-
-        val params = JSONObject()
-        params.put("data", data)
-
-        val request = JsonObjectRequest(
-            Request.Method.POST, shoppingItemUrl, params,
-            Response.Listener<JSONObject> { response ->
-                // Display the first 500 characters of the response string.
-                var updatedList = ArrayList<ShoppingItem>()
-                try {
-                    val jsonArray = response.getJSONArray("data")
-                    for (i in 0 until jsonArray.length()) {
-                        val jsonObject = jsonArray.getJSONObject(i)
-                        var urlString = jsonObject.getJSONObject("attributes").getString("image")
-                        val index = urlString.indexOf(':')
-                        val subString = if (index == -1) null else urlString.substring(index + 1)
-                        urlString = "https:$subString"
-
-                        updatedList.add(ShoppingItem(
-                            id = jsonObject.getString("id"),
-                            name = jsonObject.getJSONObject("attributes").getString("name"),
-                            imageUrl = urlString,
-                            price = jsonObject.getJSONObject("attributes").getString("price")
-                        ))
-                    }
-                } catch (e: JSONException) {
-                    e.printStackTrace()
-                } finally {
-                    adapter.updateShoppingList(updatedList)
-                }
-            },
-            Response.ErrorListener {
-                it.printStackTrace()
-            }
-        )
-        queue.add(request)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -272,12 +261,8 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         // Handle selection of options in the title bar
         when (item.itemId) {
-            R.id.choose_shop -> {
-                Toast.makeText(this, "Choose shop was selected", Toast.LENGTH_SHORT).show()
-                return true
-            }
             R.id.log_out -> {
-                Toast.makeText(this, "Logout was selected", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Logging out", Toast.LENGTH_SHORT).show()
                 intent = Intent(this, Login::class.java)
                 this.startActivity(intent)
                 return true
@@ -290,11 +275,12 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
     // selected item. This has been given a tag to be able to be identified later although this is
     // not required in this code.
     override fun onItemSelected(position: Int) {
-        val newsSource = shoppingList[position]
-        val fragment = ShoppingItemFragment.newInstance(newsSource)
+        val shoppingItem = shoppingList[position]
+        val fragment = ShoppingItemFragment.newInstance(shoppingItem)
         val transaction = supportFragmentManager.beginTransaction()
         transaction.replace(R.id.main_content, fragment, "SHOPPING_ITEM_FRAGMENT")
         transaction.addToBackStack(null)
         transaction.commit()
     }
+
 }
