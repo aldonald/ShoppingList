@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -16,6 +17,12 @@ import com.android.volley.RequestQueue
 import com.android.volley.Response
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
+import com.pusher.pushnotifications.BeamsCallback
+import com.pusher.pushnotifications.PushNotifications
+import com.pusher.pushnotifications.PusherCallbackError
+import com.pusher.pushnotifications.auth.AuthData
+import com.pusher.pushnotifications.auth.AuthDataGetter
+import com.pusher.pushnotifications.auth.BeamsTokenProvider
 import org.json.JSONException
 import org.json.JSONObject
 
@@ -65,7 +72,27 @@ class Login : AppCompatActivity() {
                         putString("token", token)
                         commit()
                     }
-
+                    val getId = JsonObjectRequest(
+                        Request.Method.GET, "https://tranquil-lowlands-73758.herokuapp.com/api/accounts/?filter[username]=$username", null,
+                        Response.Listener {
+                            try {
+                                val jsonArray = response.getJSONArray("data")
+                                val jsonObject = jsonArray.getJSONObject(0)
+                                var id = jsonObject.getString("id")
+                                with (prefs.edit()) {
+                                    putString("id", id)
+                                    commit()
+                                }
+                            } catch (e: JSONException) {
+                                e.printStackTrace()
+                            }
+                        },
+                        Response.ErrorListener {
+                            Toast.makeText(this, "Unable to connect to server!", Toast.LENGTH_SHORT).show()
+                            it.printStackTrace()
+                        }
+                    )
+                    queue.add(getId)
                 } catch (e: JSONException) {
                     Toast.makeText(this, "Invalid login details!", Toast.LENGTH_SHORT).show()
                     e.printStackTrace()
@@ -76,6 +103,36 @@ class Login : AppCompatActivity() {
                     builder.setMessage("Welcome...")
                     val alert = builder.create()
                     alert.show()
+
+                    val token = prefs.getString("token", "") as String
+                    val tokenProvider = BeamsTokenProvider(
+                        "https://tranquil-lowlands-73758.herokuapp.com/api/accounts/beams_auth/",
+                        object: AuthDataGetter {
+                            override fun getAuthData(): AuthData {
+                                return AuthData(
+                                    headers = hashMapOf(
+                                        Pair("Authorization", "Token $token"),
+                                        Pair("Content-Type", "application/vnd.api+json")
+                                    ),
+                                    queryParams = hashMapOf()
+                                )
+                            }
+                        }
+                    )
+
+                    PushNotifications.setUserId(
+                        username,
+                        tokenProvider,
+                        object : BeamsCallback<Void, PusherCallbackError> {
+                            override fun onFailure(error: PusherCallbackError) {
+                                Log.e("BeamsAuth", "Could not login to Beams: ${error.message}");
+                            }
+
+                            override fun onSuccess(vararg values: Void) {
+                                Log.i("BeamsAuth", "Beams login success");
+                            }
+                        }
+                    )
 
                     val intent = Intent(this, MainActivity::class.java)
                     this.startActivity(intent)

@@ -24,10 +24,15 @@ import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
 import com.google.android.gms.tasks.OnCompleteListener
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.google.firebase.iid.FirebaseInstanceId
-import com.google.firebase.messaging.FirebaseMessagingService
+import com.pusher.pushnotifications.BeamsCallback
+import com.pusher.pushnotifications.PushNotifications
+import com.pusher.pushnotifications.PusherCallbackError
+import com.pusher.pushnotifications.auth.AuthData
+import com.pusher.pushnotifications.auth.AuthDataGetter
+import com.pusher.pushnotifications.auth.BeamsTokenProvider
 import org.json.JSONException
 import org.json.JSONObject
+
 
 // The Activity implements AppCompatActivity() class but also the OnItemSelectListener interface
 // which links the recyclerView click event to this activity.
@@ -43,6 +48,45 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        PushNotifications.start(getApplicationContext(), "8d9473dd-0a61-4ac4-88de-d5dc18ad095a");
+        PushNotifications.addDeviceInterest("hello");
+        prefs = getSharedPreferences("auth", Context.MODE_PRIVATE)
+        val token = prefs.getString("token", "") as String
+        val id = prefs.getString("id", "") as String
+
+        if (token == "" || id == "") {
+            logout()
+        } else {
+            val tokenProvider = BeamsTokenProvider(
+                "https://tranquil-lowlands-73758.herokuapp.com/api/accounts/beams_auth/",
+                object: AuthDataGetter {
+                    override fun getAuthData(): AuthData {
+                        return AuthData(
+                            headers = hashMapOf(
+                                Pair("Authorization", "Token $token"),
+                                Pair("Content-Type", "application/vnd.api+json")
+                            ),
+                            queryParams = hashMapOf()
+                        )
+                    }
+                }
+            )
+
+            PushNotifications.setUserId(
+                id,
+                tokenProvider,
+                object : BeamsCallback<Void, PusherCallbackError> {
+                    override fun onFailure(error: PusherCallbackError) {
+                        Log.e("BeamsAuth", "Could not login to Beams: ${error.message}");
+                    }
+
+                    override fun onSuccess(vararg values: Void) {
+                        Log.i("BeamsAuth", "Beams login success");
+                    }
+                }
+            )
+        }
 
         queue = Volley.newRequestQueue(this)
         toolbar = findViewById(R.id.toolbar)
@@ -69,50 +113,6 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
         recyclerView.setHasFixedSize(false)
         val itemTouchHelper = ItemTouchHelper(swipeItemCallback)
         itemTouchHelper.attachToRecyclerView(recyclerView)
-
-        FirebaseInstanceId.getInstance().instanceId
-            .addOnCompleteListener(OnCompleteListener { task ->
-                if (!task.isSuccessful) {
-                    Log.w("getInstanceId failed", task.exception)
-                    return@OnCompleteListener
-                }
-                val storedToken = prefs.getString("firebase", "")
-                val firebaseToken = task.result?.token as String
-                if (storedToken != firebaseToken) {
-                    val url = "https://tranquil-lowlands-73758.herokuapp.com/api/add_ftoken/"
-                    val authToken = prefs.getString("token", null)
-
-                    val params = JSONObject()
-                    params.put("firebaseToken", firebaseToken)
-
-                    val request = object: JsonObjectRequest(
-                        Method.POST, url, params,
-                        Response.Listener { _ ->
-                            with (prefs.edit()) {
-                                putString("firebase", firebaseToken)
-                                commit()
-                            }
-                            val msg = "Firebase token: $firebaseToken"
-                            Log.d("Success", msg)
-                        },
-                        Response.ErrorListener {
-                            it.printStackTrace()
-                        }
-                    )  {
-                        override fun getHeaders() : Map<String,String> {
-                            val header = HashMap<String, String>()
-                            header["Authorization"] = "Token $authToken"
-                            header["Content-Type"] = "application/vnd.api+json"
-                            return header
-                        }
-                    }
-
-                    queue.add(request)
-                }
-
-
-
-            })
     }
 
     private var swipeItemCallback: ItemTouchHelper.SimpleCallback = object :
@@ -262,9 +262,7 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
         // Handle selection of options in the title bar
         when (item.itemId) {
             R.id.log_out -> {
-                Toast.makeText(this, "Logging out", Toast.LENGTH_SHORT).show()
-                intent = Intent(this, Login::class.java)
-                this.startActivity(intent)
+                logout()
                 return true
             }
         }
@@ -283,4 +281,10 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
         transaction.commit()
     }
 
+    private fun logout() {
+        PushNotifications.clearAllState()
+        Toast.makeText(this, "Logging out", Toast.LENGTH_SHORT).show()
+        intent = Intent(this, Login::class.java)
+        this.startActivity(intent)
+    }
 }

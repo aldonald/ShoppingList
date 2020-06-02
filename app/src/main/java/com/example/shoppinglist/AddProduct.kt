@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.VectorDrawable
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Base64
@@ -50,13 +51,17 @@ class AddProduct : AppCompatActivity() {
             // Getting the byte stream code is heavily influenced by
             // https://stackoverflow.com/questions/9042932/getting-image-from-imageview
             val drawable = newImageField.drawable
-            val bitmapDrawable = drawable as BitmapDrawable
-            val bitmap = bitmapDrawable.bitmap
-            val stream = ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, stream)
+            var imageBytes = ""
+            try {
+                val bitmapDrawable = drawable as BitmapDrawable
+                val bitmap = bitmapDrawable.bitmap
+                val stream = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 80, stream)
 
-            val imageInByte = stream.toByteArray()
-            val imageBytes = Base64.encodeToString(imageInByte, Base64.DEFAULT)
+                val imageInByte = stream.toByteArray()
+                imageBytes = Base64.encodeToString(imageInByte, Base64.DEFAULT)
+            } catch (e: ClassCastException) {
+            }
 
             val itemName = newNameField.text.toString()
             val itemPrice = newPriceField.text.toString()
