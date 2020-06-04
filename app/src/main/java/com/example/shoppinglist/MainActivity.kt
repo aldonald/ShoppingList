@@ -50,7 +50,9 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
         setContentView(R.layout.activity_main)
 
         PushNotifications.start(getApplicationContext(), "8d9473dd-0a61-4ac4-88de-d5dc18ad095a");
-        PushNotifications.addDeviceInterest("hello");
+        PushNotifications.addDeviceInterest("shopping")
+        PushNotifications.addDeviceInterest("debug-shopping")
+
         prefs = getSharedPreferences("auth", Context.MODE_PRIVATE)
         val token = prefs.getString("token", "") as String
         val id = prefs.getString("id", "") as String
@@ -189,7 +191,7 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
         val request = object: JsonObjectRequest(
             Method.GET, url, null,
             Response.Listener<JSONObject> { response ->
-                var updatedList = ArrayList<ShoppingItem>()
+                val updatedList = ArrayList<ShoppingItem>()
                 try {
                     val jsonArray = response.getJSONArray("data")
                     for (i in 0 until jsonArray.length()) {
@@ -235,7 +237,7 @@ class MainActivity : AppCompatActivity(), RecyclerAdapter.OnItemSelectListener {
         val deleteRequest = object: JsonObjectRequest(
             Method.DELETE, url, params,
             Response.Listener { _ ->
-                Toast.makeText(this, "Item deleted!", Toast.LENGTH_SHORT)
+                Toast.makeText(this, "Item deleted!", Toast.LENGTH_SHORT).show()
             },
             Response.ErrorListener {
                 it.printStackTrace()

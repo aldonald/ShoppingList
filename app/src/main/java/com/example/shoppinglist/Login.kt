@@ -72,17 +72,68 @@ class Login : AppCompatActivity() {
                         putString("token", token)
                         commit()
                     }
-                    val getId = JsonObjectRequest(
-                        Request.Method.GET, "https://tranquil-lowlands-73758.herokuapp.com/api/accounts/?filter[username]=$username", null,
-                        Response.Listener {
+                    val getId = object: JsonObjectRequest(
+                        Method.GET, "https://tranquil-lowlands-73758.herokuapp.com/api/accounts/?filter[username]=$username", null,
+                        Response.Listener {idResponse ->
                             try {
-                                val jsonArray = response.getJSONArray("data")
-                                val jsonObject = jsonArray.getJSONObject(0)
-                                var id = jsonObject.getString("id")
-                                with (prefs.edit()) {
+                                val userArray = idResponse.getJSONArray("data")
+                                val userObject = userArray.getJSONObject(0)
+                                val id = userObject.getString("id")
+                                with(prefs.edit()) {
                                     putString("id", id)
                                     commit()
                                 }
+
+                                try {
+                                    val tokenProvider = BeamsTokenProvider(
+                                        "https://tranquil-lowlands-73758.herokuapp.com/api/accounts/beams_auth/",
+                                        object : AuthDataGetter {
+                                            override fun getAuthData(): AuthData {
+                                                return AuthData(
+                                                    headers = hashMapOf(
+                                                        Pair("Authorization", "Token $token"),
+                                                        Pair(
+                                                            "Content-Type",
+                                                            "application/vnd.api+json"
+                                                        )
+                                                    ),
+                                                    queryParams = hashMapOf()
+                                                )
+                                            }
+                                        }
+                                    )
+
+                                    PushNotifications.setUserId(
+                                        id,
+                                        tokenProvider,
+                                        object : BeamsCallback<Void, PusherCallbackError> {
+                                            override fun onFailure(error: PusherCallbackError) {
+                                                Log.e(
+                                                    "BeamsAuth",
+                                                    "Could not login to Beams: ${error.message}"
+                                                );
+                                            }
+
+                                            override fun onSuccess(vararg values: Void) {
+                                                Log.i("BeamsAuth", "Beams login success")
+                                                Log.i("BeamsAuth", "$values")
+                                            }
+                                        }
+                                    )
+                                } catch (e: IllegalStateException) {
+                                    e.printStackTrace()
+                                }
+
+                                val builder = AlertDialog.Builder(this)
+                                builder.setIcon(R.drawable.ic_check_circle)
+                                builder.setTitle("Login Successful!")
+                                builder.setMessage("Welcome...")
+                                val alert = builder.create()
+                                alert.show()
+
+                                val intent = Intent(this, MainActivity::class.java)
+                                this.startActivity(intent)
+
                             } catch (e: JSONException) {
                                 e.printStackTrace()
                             }
@@ -91,51 +142,18 @@ class Login : AppCompatActivity() {
                             Toast.makeText(this, "Unable to connect to server!", Toast.LENGTH_SHORT).show()
                             it.printStackTrace()
                         }
-                    )
+                    ) {
+                        override fun getHeaders() : Map<String,String> {
+                            val header = HashMap<String, String>()
+                            header["Authorization"] = "Token $token"
+                            header["Content-Type"] = "application/vnd.api+json"
+                            return header
+                        }
+                    }
                     queue.add(getId)
                 } catch (e: JSONException) {
                     Toast.makeText(this, "Invalid login details!", Toast.LENGTH_SHORT).show()
                     e.printStackTrace()
-                } finally {
-                    val builder = AlertDialog.Builder(this)
-                    builder.setIcon(R.drawable.ic_check_circle)
-                    builder.setTitle("Login Successful!")
-                    builder.setMessage("Welcome...")
-                    val alert = builder.create()
-                    alert.show()
-
-                    val token = prefs.getString("token", "") as String
-                    val tokenProvider = BeamsTokenProvider(
-                        "https://tranquil-lowlands-73758.herokuapp.com/api/accounts/beams_auth/",
-                        object: AuthDataGetter {
-                            override fun getAuthData(): AuthData {
-                                return AuthData(
-                                    headers = hashMapOf(
-                                        Pair("Authorization", "Token $token"),
-                                        Pair("Content-Type", "application/vnd.api+json")
-                                    ),
-                                    queryParams = hashMapOf()
-                                )
-                            }
-                        }
-                    )
-
-                    PushNotifications.setUserId(
-                        username,
-                        tokenProvider,
-                        object : BeamsCallback<Void, PusherCallbackError> {
-                            override fun onFailure(error: PusherCallbackError) {
-                                Log.e("BeamsAuth", "Could not login to Beams: ${error.message}");
-                            }
-
-                            override fun onSuccess(vararg values: Void) {
-                                Log.i("BeamsAuth", "Beams login success");
-                            }
-                        }
-                    )
-
-                    val intent = Intent(this, MainActivity::class.java)
-                    this.startActivity(intent)
                 }
             },
             Response.ErrorListener {
