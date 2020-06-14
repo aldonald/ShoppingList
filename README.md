@@ -1,8 +1,8 @@
 # ShoppingList
 This is the android app for the ShoppingApp
 
-# Alex Donald
-# 218362669
+### Alex Donald
+#### 218362669
 
 ## Overview
 The project is a shopping list app with an independent storage accessed through APIs. The app allows for smart devices to 
