@@ -52,7 +52,6 @@ class AddProduct : AppCompatActivity() {
         }
 
         submitButton.setOnClickListener {
-            progressBar.visibility = View.VISIBLE
             // First we take the image that is stored in the image field
             val drawable = newImageField.drawable
             var imageBytes = ""
@@ -73,6 +72,17 @@ class AddProduct : AppCompatActivity() {
             // Taking the text from the other entries
             val itemName = newNameField.text.toString()
             val itemPrice = newPriceField.text.toString()
+
+            // Verify the price entered is reasonable. Two decimal places and max of 8 digits before
+            // the point.
+            val pricePattern = """^\d{0,8}(\.\d{0,2})?${'$'}""".toRegex()
+
+            if (!pricePattern.matches(itemPrice)) {
+                newPriceField.error = "The price entered is not correct."
+            }
+
+            // OK to add the spinner now price check has passed.
+            progressBar.visibility = View.VISIBLE
 
             // Create a JSON object for the post request. This is the new item. The JSON request
             // needs to be built as per the specifications of the API. I am using vnd.api+json due
