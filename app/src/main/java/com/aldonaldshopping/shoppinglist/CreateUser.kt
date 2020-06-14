@@ -67,12 +67,15 @@ class CreateUser : AppCompatActivity() {
             val verifyText = verifyPassword.text.toString()
             // Make sure the two password fields match
             if (passwordText != verifyText) {
+                progressBar.visibility = View.GONE
                 Toast.makeText(this, "Password fields do not match", Toast.LENGTH_SHORT).show()
             } else {
                 // Check the email complies
                 if (!emailPattern.matches(emailText)) {
+                    progressBar.visibility = View.GONE
                     email.error = "The email address is incorrect."
                 } else if (passwordText.length < 8) {
+                    progressBar.visibility = View.GONE
                     // Prevent short passwords
                     password.error = "The password is too short. Please enter at least 8 characters."
                 } else {

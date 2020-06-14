@@ -78,6 +78,7 @@ class AddProduct : AppCompatActivity() {
             val pricePattern = """^\d{0,8}(\.\d{0,2})?${'$'}""".toRegex()
 
             if (!pricePattern.matches(itemPrice)) {
+                progressBar.visibility = View.GONE
                 newPriceField.error = "The price entered is not correct."
             }
 
