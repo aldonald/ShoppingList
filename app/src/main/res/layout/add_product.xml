@@ -11,7 +11,7 @@
         android:id="@+id/newImageField"
         android:layout_width="149dp"
         android:layout_height="138dp"
-        android:layout_marginTop="48dp"
+        android:layout_marginTop="72dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
@@ -29,7 +29,8 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/newImageField"
-        android:autofillHints="Product name ..." />
+        android:autofillHints="Product name ..."
+        android:imeOptions="actionDone"/>
 
     <LinearLayout
         android:id="@+id/newPriceLayout"
@@ -56,19 +57,52 @@
             android:ems="10"
             android:hint="@string/enter_the_price"
             android:inputType="numberDecimal"
-            android:autofillHints="Enter the price ..." />
+            android:autofillHints="Enter the price ..."
+            android:imeOptions="actionDone"/>
     </LinearLayout>
 
-    <Button
+    <androidx.cardview.widget.CardView
         android:id="@+id/submitNewButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="200dp"
+        android:layout_height="50dp"
+        android:layout_centerHorizontal="true"
         android:layout_marginTop="48dp"
-        android:text="@string/submit"
-        android:background="@color/colorPrimary"
-        android:textColor="#FFFFFF"
+        app:cardBackgroundColor="@color/colorPrimaryDark"
+        app:cardCornerRadius="25dp"
+        app:cardElevation="10dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/newPriceLayout" />
+        app:layout_constraintTop_toBottomOf="@+id/newPriceLayout"
+        android:foreground="@drawable/ripple">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <TextView
+                android:id="@+id/textView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/submit"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"/>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.cardview.widget.CardView>
+
+    <ProgressBar
+        android:id="@+id/progress_product"
+        style="?android:attr/progressBarStyleLarge"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:layout_centerHorizontal="true"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,4 +1,4 @@
-package com.example.shoppinglist
+package com.aldonaldshopping.shoppinglist
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

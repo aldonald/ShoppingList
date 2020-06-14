@@ -1,4 +1,4 @@
-package com.example.shoppinglist
+package com.aldonaldshopping.shoppinglist
 
 import android.view.LayoutInflater
 import android.view.View
@@ -6,9 +6,6 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.android.volley.RequestQueue
-import com.android.volley.toolbox.ImageLoader
-import com.android.volley.toolbox.NetworkImageView
 import com.squareup.picasso.Picasso
 
 
@@ -37,12 +34,17 @@ class RecyclerAdapter(private val shoppingList: ArrayList<ShoppingItem>,
 
         holder.textView.text = currentItem.name
         holder.priceView.text = "$${currentItem.price}"
-        Picasso.get().load(currentItem.imageUrl)
-            .resize(80, 80)
-            .centerCrop()
-            .into(holder.imageView)
+        if (currentItem.imageUrl != "https:null") {
+            Picasso.get().load(currentItem.imageUrl)
+                .resize(80, 80)
+                .centerCrop()
+                .into(holder.imageView)
+        } else {
+            holder.imageView.setImageResource(R.drawable.shopping_item_blank)
+        }
     }
 
+    // Function to simplify the call when updating. This updates the list and notifies the change.
     fun updateShoppingList(newList: ArrayList<ShoppingItem>) {
         shoppingList.clear()
         shoppingList.addAll(newList)

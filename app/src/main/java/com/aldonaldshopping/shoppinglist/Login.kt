@@ -1,4 +1,4 @@
-package com.example.shoppinglist
+package com.aldonaldshopping.shoppinglist
 
 import android.content.Context
 import android.content.Intent
@@ -6,17 +6,15 @@ import android.content.SharedPreferences
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
-import android.widget.EditText
-import android.widget.Toast
+import android.view.View
+import android.widget.*
 import androidx.appcompat.app.AlertDialog
+import androidx.cardview.widget.CardView
 import com.android.volley.Request
 import com.android.volley.RequestQueue
 import com.android.volley.Response
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
-import com.google.android.gms.tasks.OnCompleteListener
-import com.google.firebase.iid.FirebaseInstanceId
 import com.pusher.pushnotifications.BeamsCallback
 import com.pusher.pushnotifications.PushNotifications
 import com.pusher.pushnotifications.PusherCallbackError
@@ -26,73 +24,42 @@ import com.pusher.pushnotifications.auth.BeamsTokenProvider
 import org.json.JSONException
 import org.json.JSONObject
 
-class CreateUser : AppCompatActivity() {
-    private lateinit var username: EditText
-    private lateinit var email: EditText
-    private lateinit var password: EditText
-    private lateinit var verifyPassword: EditText
-    private lateinit var createUserButton: Button
+class Login : AppCompatActivity() {
+    lateinit var usernameField: EditText
+    lateinit var passwordField: EditText
+    lateinit var submitButton: CardView
     private lateinit var prefs: SharedPreferences
-    private lateinit var idPrefs: SharedPreferences
     private lateinit var queue: RequestQueue
-    private val addUserUrl = "https://tranquil-lowlands-73758.herokuapp.com/api/create_user/"
+    private lateinit var signUpButton: TextView
+    private lateinit var progressBar: ProgressBar
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_create_user)
-
+        setContentView(R.layout.activity_login)
         prefs = getSharedPreferences("auth", Context.MODE_PRIVATE)
-        idPrefs = getSharedPreferences("id", Context.MODE_PRIVATE)
         queue = Volley.newRequestQueue(this)
-        username = findViewById(R.id.create_username)
-        email = findViewById(R.id.createEmail)
-        password = findViewById(R.id.createPassword)
-        verifyPassword = findViewById(R.id.createPasswordVerify)
-        createUserButton = findViewById(R.id.createUserButton)
+        usernameField = findViewById(R.id.username)
+        passwordField = findViewById(R.id.password)
+        submitButton = findViewById(R.id.submit_button)
+        signUpButton = findViewById(R.id.sign_up_button)
+        progressBar = findViewById(R.id.progress_login)
 
-        createUserButton.setOnClickListener {
-            val usernameText = username.text.toString()
-            val emailText = email.text.toString()
-            val passwordText = password.text.toString()
-            val verifyText = verifyPassword.text.toString()
-            if (passwordText != verifyText) {
-                Toast.makeText(this, "Password fields do not match", Toast.LENGTH_SHORT).show()
-            } else {
-                val attributes = JSONObject()
-                attributes.put("username", usernameText)
-                attributes.put("email", emailText)
-                attributes.put("password", passwordText)
+        submitButton.setOnClickListener {
+            val usernameContent = usernameField.text.toString()
+            val passwordContent = passwordField.text.toString()
 
-                val data = JSONObject()
-                data.put("attributes", attributes)
-                data.put("type", "User")
+            // When logging in show the progress bar
+            progressBar.visibility = View.VISIBLE
 
-                val params = JSONObject()
-                params.put("data", data)
-
-                val request = object : JsonObjectRequest(
-                    Method.POST, addUserUrl, params,
-                    Response.Listener { response ->
-                        val jsonObject = response.getJSONObject("data")
-
-                        val username = jsonObject.getJSONObject("attributes").getString("username")
-
-                        login(username, passwordText)
-                    },
-                    Response.ErrorListener {
-                        it.printStackTrace()
-                    }
-                ) {
-                    override fun getHeaders(): Map<String, String> {
-                        val header = HashMap<String, String>()
-                        header["Content-Type"] = "application/vnd.api+json"
-                        return header
-                    }
-                }
-                queue.add(request)
-            }
+            // Pass in the username and the password to login function.
+            login(usernameContent, passwordContent)
         }
 
+        // This link goes to sign up activity.
+        signUpButton.setOnClickListener {
+            val intent = Intent(this, CreateUser::class.java)
+            this.startActivity(intent)
+        }
     }
 
     private fun login(username: String, password: String) {
@@ -101,19 +68,25 @@ class CreateUser : AppCompatActivity() {
         params.put("username", username)
         params.put("password", password)
 
+        // Build post request to get token from the specific end point.
         val request = JsonObjectRequest(
             Request.Method.POST, url, params,
             Response.Listener<JSONObject> { response ->
                 try {
+                    // Commit the token to local storage for future requests.
                     val token = response.getString("token")
                     with (prefs.edit()) {
                         putString("token", token)
                         commit()
                     }
+
+                    // This request gets the user id so the app can be linked to FireBase messaging
+                    // - push notifications.
                     val getId = object: JsonObjectRequest(
                         Method.GET, "https://tranquil-lowlands-73758.herokuapp.com/api/accounts/?filter[username]=$username", null,
                         Response.Listener {idResponse ->
                             try {
+                                // The user's id is stored locally
                                 val userArray = idResponse.getJSONArray("data")
                                 val userObject = userArray.getJSONObject(0)
                                 val id = userObject.getString("id")
@@ -122,6 +95,10 @@ class CreateUser : AppCompatActivity() {
                                     commit()
                                 }
 
+                                // Now the id has been received we can log the device with Beams -
+                                // a manager for FireBase messaging. Below is essentially a post
+                                // request which is packaged and sent to beams. When they want to
+                                // match the users, they initiate the call below as is.
                                 try {
                                     val tokenProvider = BeamsTokenProvider(
                                         "https://tranquil-lowlands-73758.herokuapp.com/api/accounts/beams_auth/",
@@ -162,6 +139,9 @@ class CreateUser : AppCompatActivity() {
                                     e.printStackTrace()
                                 }
 
+                                // Now we can give the log in message. Failures on the Beams set up
+                                // are logged but silent to the user as they do not prevent the use
+                                // of the app.
                                 val builder = AlertDialog.Builder(this)
                                 builder.setIcon(R.drawable.ic_check_circle)
                                 builder.setTitle("Login Successful!")
@@ -188,6 +168,7 @@ class CreateUser : AppCompatActivity() {
                             return header
                         }
                     }
+                    // This is the request for user id added to the queue.
                     queue.add(getId)
                 } catch (e: JSONException) {
                     Toast.makeText(this, "Invalid login details!", Toast.LENGTH_SHORT).show()
@@ -199,6 +180,8 @@ class CreateUser : AppCompatActivity() {
                 it.printStackTrace()
             }
         )
+        // This is the request to get the token added to the queue.
         queue.add(request)
     }
+
 }
